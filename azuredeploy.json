@@ -1,97 +1,104 @@
-
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "projectName": {
+    "appBaseName": {
       "type": "string",
-      "minLength": 3,
-      "maxLength": 11,
+      "minLength": 1
+    },
+    "appBaseSkuName": {
+      "type": "string",
+      "defaultValue": "F1",
+      "allowedValues": [
+        "F1",
+        "D1",
+        "B1",
+        "B2",
+        "B3",
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
       "metadata": {
-        "description": "Specify a project name that is used to generate resource names."
+        "description": "Describes plan's pricing tier and capacity. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
       }
     },
-    "location": {
+    "appbaseAdminLogin": {
       "type": "string",
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Specify a location for the resources."
-      }
+      "minLength": 1
     },
-    "linuxFxVersion": {
+    "appbaseAdminLoginPassword": {
+      "type": "securestring"
+    },
+    "appbaseCollation": {
       "type": "string",
-      "defaultValue": "php|7.0",
+      "minLength": 1,
+      "defaultValue": "SQL_Latin1_General_CP1_CI_AS"
+    },
+    "appbaseEdition": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ]
+    },
+    "appbaseRequestedServiceObjectiveName": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "S0",
+        "S1",
+        "S2",
+        "P1",
+        "P2",
+        "P3"
+      ],
       "metadata": {
-        "description": "The Runtime stack of current web app"
+        "description": "Describes the performance level for Edition"
       }
-    }
-  },
-  "variables": {
-    "storageAccountName": "[concat(parameters('projectName'), uniqueString(resourceGroup().id))]",
-    "webAppName": "[concat(parameters('projectName'), 'WebApp')]",
-    "appServicePlanName": "[concat(parameters('projectName'), 'Plan')]"
-  },
+    }},
+  "variables": { },
   "resources": [
     {
-      "name": "linkedTemplate",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2020-10-01",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "relativePath": "linkedStorageAccount.json"
-        },
-        "parameters": {
-          "storageAccountName": {
-            "value": "[variables('storageAccountName')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          }
-        }
-      }
-    },
-    {
+      "name": "[parameters('appBaseName')]",
       "type": "Microsoft.Web/serverfarms",
-      "apiVersion": "2020-09-01",
-      "name": "[variables('appServicePlanName')]",
-      "location": "[parameters('location')]",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-08-01",
       "sku": {
-        "name": "B1",
-        "tier": "Basic",
-        "size": "B1",
-        "family": "B",
-        "capacity": 1
+        "name": "[parameters('appBaseSkuName')]"
       },
-      "kind": "linux",
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "appBase"
+      },
       "properties": {
-        "perSiteScaling": false,
-        "reserved": true,
-        "targetWorkerCount": 0,
-        "targetWorkerSizeId": 0
+        "name": "[parameters('appBaseName')]",
+        "numberOfWorkers": 1
       }
     },
     {
+      "name": "[parameters('appBaseName')]",
       "type": "Microsoft.Web/sites",
-      "apiVersion": "2020-09-01",
-      "name": "[variables('webAppName')]",
-      "location": "[parameters('location')]",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-08-01",
       "dependsOn": [
-        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+        "[resourceId('Microsoft.Web/serverfarms', parameters('appBaseName'))]"
       ],
-      "kind": "app",
+      "tags": {
+        "[concat('hidden-related:', resourceId('Microsoft.Web/serverfarms', parameters('appBaseName')))]": "Resource",
+        "displayName": "appBase"
+      },
       "properties": {
-        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
-        "siteConfig": {
-          "linuxFxVersion": "[parameters('linuxFxVersion')]"
-        }
+        "name": "[parameters('appBaseName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appBaseName'))]"
       }
-    }
-  ],
-  "outputs": {
-    "storageEndpoint": {
-      "type": "object",
-      "value": "[reference('linkedTemplate').outputs.storageEndpoint.value]"
-    }
-  }
+    }],
+  "outputs": {}
 }
